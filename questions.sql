@@ -21,4 +21,117 @@ GROUP BY c.first_name, o.order_date
 QUALIFY RANK() OVER (PARTITION BY o.order_date ORDER BY SUM(o.total_order_cost) DESC) = 1;
 
 
+Day 2
+
+SELECT DISTINCT
+    company_name,
+    COUNT(CASE WHEN year = 2020 THEN product_name END) 
+        OVER (PARTITION BY company_name) 
+        - 
+    COUNT(CASE WHEN year = 2019 THEN product_name END) 
+        OVER (PARTITION BY company_name) AS net_difference
+FROM car_launches;
+
+Calculate the net change in the number of products launched by companies in 2020 compared to 2019. Your output should include the company names and the net difference.
+(Net difference = Number of products launched in 2020 - The number launched in 2019.)
+
+Table
+car_launches
+company_name:
+text
+product_name:
+text
+year:
+bigint
+
+SELECT DISTINCT
+    company_name,
+    COUNT(CASE WHEN year = 2020 THEN product_name END) 
+        OVER (PARTITION BY company_name) 
+        - 
+    COUNT(CASE WHEN year = 2019 THEN product_name END) 
+        OVER (PARTITION BY company_name) AS net_difference
+FROM car_launches;
+
+Calculates the difference between the highest salaries in the marketing and engineering departments. Output just the absolute difference in salaries.
+
+Tables
+db_employee
+db_dept
+
+WITH dept_max AS (
+  SELECT 
+    R.department,
+    MAX(L.salary) AS max_salary
+  FROM db_employee L
+  INNER JOIN db_dept R ON L.department_id = R.id
+  WHERE R.department IN ('marketing', 'engineering')
+  GROUP BY R.department
+)
+SELECT 
+  ABS(
+    MAX(CASE WHEN department = 'marketing' THEN max_salary END)
+    -
+    MAX(CASE WHEN department = 'engineering' THEN max_salary END)
+  ) AS abs_salary_difference
+FROM dept_max;
+Compare the total number of comments made by users in each country during December 2019 and January 2020. For each month, determine how each country ranks based on its total number of comments (with countries having the same total sharing the same rank). Return the names of the countries whose rank improved from December to January (i.e., their rank number decreased).
+
+Tables
+fb_comments_count
+fb_active_users
+
+WITH monthly_comments AS (
+    SELECT u.country,
+           date_trunc('month', c.created_at)::date AS month_start,
+           SUM(c.number_of_comments) AS total_comments
+    FROM fb_comments_count AS c
+    JOIN fb_active_users AS u ON c.user_id = u.user_id
+    WHERE c.created_at >= '2019-12-01'
+      AND c.created_at < '2020-02-01'
+    GROUP BY u.country,
+             date_trunc('month', c.created_at)::date
+),
+december AS (
+    SELECT country,
+           total_comments
+    FROM monthly_comments
+    WHERE month_start = '2019-12-01'
+),
+january AS (
+    SELECT country,
+           total_comments
+    FROM monthly_comments
+    WHERE month_start = '2020-01-01'
+),
+december_rank AS (
+    SELECT country,
+           total_comments,
+           DENSE_RANK() OVER (
+               ORDER BY total_comments DESC
+           ) AS dec_rank
+    FROM december
+),
+january_rank AS (
+    SELECT country,
+           total_comments,
+           DENSE_RANK() OVER (
+               ORDER BY total_comments DESC
+           ) AS jan_rank
+    FROM january
+),
+rank_compare AS (
+    SELECT d.country,
+           d.dec_rank,
+           j.jan_rank,
+           d.total_comments AS dec_comments,
+           j.total_comments AS jan_comments
+    FROM december_rank d
+    JOIN january_rank j USING (country)
+)
+SELECT country
+FROM rank_compare
+WHERE dec_rank > jan_rank
+ORDER BY dec_rank;
+
  
