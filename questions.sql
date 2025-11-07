@@ -135,3 +135,39 @@ WHERE dec_rank > jan_rank
 ORDER BY dec_rank;
 
  
+
+ We have a table with employees and their salaries, however, some of the records are old and contain outdated salary information. Find the current salary of each employee assuming that salaries increase each year. Output their id, first name, last name, department ID, and current salary. Order your list by employee ID in ascending order.
+
+Table
+ms_employee_salary
+
+department_id:
+bigint
+first_name:
+text
+id:
+bigint
+last_name:
+text
+salary:
+bigint
+
+WITH ranked AS (
+    SELECT 
+        id,
+        first_name,
+        department_id,
+        last_name,
+        salary,
+        ROW_NUMBER() OVER (PARTITION BY id ORDER BY salary DESC, department_id DESC) AS rn
+    FROM ms_employee_salary
+)
+SELECT 
+    id,
+    first_name,
+    department_id,
+    last_name,
+    salary
+FROM ranked
+WHERE rn = 1
+ORDER BY id;
